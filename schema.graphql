@@ -1,0 +1,162 @@
+schema {
+    query: Query
+    mutation: Mutation
+}
+
+# An username consists of a-z, 0-9 and _ characters
+scalar Username
+# A profile picture must be a base64 encoded .PNG file
+scalar ProfilePicture
+# A valid ed25519 public key
+scalar Ed25519PublicKey
+# An uuid V4
+scalar UUIDV4
+scalar Time
+scalar EmailAddress
+scalar ConfirmationCode
+
+enum ApplicationState {
+    Rejected
+    Approved
+    Pending
+}
+
+enum ApplicationsResponseError {
+    Unauthenticated
+    InsufficientPermissions
+    ApplicationNotFound
+    NotAllowedToAccessApplication
+}
+
+type ApplicationsResponse {
+    error: ApplicationsResponseError
+    applications: [Application!]!
+}
+
+type Query {
+    applications(position: UUIDV4, next: Int!, state: ApplicationState!) : ApplicationsResponse!
+    myCurrentApplication() : Application
+    # does this even exist - the profile? What is the Profile
+    myMember() : Member
+}
+
+input RejectApplicationInput {
+    applicationID: UUIDV4!
+    reason: String!
+}
+
+enum ApplyForVerificationError {
+    PendingApplication
+    AlreadyVerified
+}
+
+type ApplyForVerificationResponse {
+    error: ApplyForVerificationError
+    application: Application
+}
+
+enum ApproveApplicationError {
+    Unauthenticated
+    InsufficientPermissions
+    ApplicationDoesNotExist
+    AlreadyReviewed
+}
+
+type ApproveApplicationResponse {
+    application: Application
+    error: ApproveApplicationError
+}
+
+enum RejectApplicationError {
+    Unauthenticated
+    InsufficientPermissions
+    ApplicationDoesNotExist
+    AlreadyReviewed
+}
+
+type RejectApplicationResponse {
+    application: Application
+    error: RejectApplicationError
+}
+
+input SignUpInput {
+    username: Username!
+    emailAddress: EmailAddress!
+    properName: ProperNameInput!
+    profilePicture: ProfilePicture
+}
+
+enum SignUpError {
+    UsernameTaken
+    EmailAddressTaken
+}
+
+type SignUpResponse {
+    member: Member
+    error: SignUpError
+}
+
+input LoginInput {
+    emailAddress: EmailAddress!
+    memberAccessPublicKey: Ed25519PublicKey!
+    confirmationCode: ConfirmationCode!
+}
+
+input RejectApplicationInput {
+    applicationID: UUIDV4!
+    rejectionReason: String!
+}
+
+# mutations
+type Mutation {
+    applyForVerification(applicationText: String!) : ApplyForVerificationResponse!
+    approveApplication(applicationID: UUIDV4!) : ApproveApplicationResponse!
+    rejectApplication(input: RejectApplicationInput!) : RejectApplicationResponse!
+    signUp(input: SignUpInput!) : SignUpResponse!
+    requestLogin(emailAddress: EmailAddress!) : Int!
+    login(input: LoginInput!): LoginResponse!
+}
+
+input ProperNameInput {
+    firstName: String!
+    lastName: String!
+}
+
+enum LoginError {
+    ConfirmationCodeNotFound
+    ConfirmationCodeExpired
+    ConfirmationCodeAlreadyUsed
+    MemberAccessKeyHasAlreadyBeenUsed
+    ConfirmationCodeMemberMismatch
+}
+
+type ProperName {
+    firstName: String!
+    lastName: String!
+}
+
+type Member {
+    id: UUIDV4!
+    name: ProperName!
+    username: Username!
+    profilePicture: ProfilePicture
+    admin: Boolean!
+    emailAddress: EmailAddress
+}
+
+type LoginResponse {
+    accessToken: String
+    error: LoginError
+    member: Member
+}
+
+type Application {
+    id: UUIDV4!
+    member: Member!
+    applicationText: String!
+    state: ApplicationState!
+    createdAt: Time!
+    rejectionReason: String
+    rejectedAt: Time
+    approvedAt: Time
+}
